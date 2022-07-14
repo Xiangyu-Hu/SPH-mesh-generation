@@ -1,0 +1,198 @@
+#*****************************************************#
+#                       Directories                   #
+#*****************************************************#
+
+SRC = ./src
+UTILS = utils
+DIR_DD = CVP
+DIR_GRAPH = graph
+
+#*****************************************************#
+#                 General setups                      #
+#*****************************************************#
+
+# PARALLEL = SINGLECPU
+PARALLEL = MULTICPU
+ifeq ($(PARALLEL), MULTICPU)
+  DFLAGS  += -D_MPI_
+  NP  = 6
+
+  NARROW_BAND_GRAPH = yes
+  ifeq ($(NARROW_BAND_GRAPH),yes)
+    DFLAGS  += -D_NARROW_BAND_GRAPH_
+  endif
+
+else ifeq ($(PARALLEL), SINGLECPU)
+  NP  = 1
+endif
+
+DFLAGS  += -D_DOUBLE_
+
+GRAVITY = no
+ifeq ($(GRAVITY),yes)
+  DFLAGS  += -D_G_
+endif
+
+KERNEL = -D_HYPERBOLIC_KERNEL_
+#KERNEL = -D_WINDLAND_C4_
+#KERNEL = -D_CUBIC_SPLINE_
+#KERNEL = -D_GAUSSIAN_
+#KERNEL = -D_QUINTIC_SPLINE_
+
+DFLAGS  += $(KERNEL)
+
+#*****************************************************#
+#                   TOOLS                             #
+#*****************************************************#
+
+TEST_MODE = no
+ifeq ($(TEST_MODE),yes)
+  DFLAGS  += -D_TEST_
+endif
+
+#DFLAGS  += -D_WEIGHTED_PARTITION_
+DFLAGS  += -D_MASS_
+
+DFLAGS  += -D_V_MEAN_VELOCITY_
+
+DFLAGS  += -D_ASCII_
+
+#*****************************************************#
+#                   Solvers                           #
+#*****************************************************#
+SOLVER = mesh_generation
+DIR_BASE = base_cls_particle
+
+#------------------------------------------------------
+# parallel mesh generation solver
+#------------------------------------------------------
+ifeq ($(SOLVER), mesh_generation)
+
+  DIR_SOLVER = sph_mesh_generation
+  DIR_LEVEL_SET = level_set_solver
+  DIR_BOUNDARY = Boundary_conditions
+  DIR_BASE_MESH = base_cls_mesh
+  DIR_GEOMETRY = geometry_tools
+
+# Pre Part
+
+  CVP_LSET_INIT = yes
+  ifeq ($(CVP_LSET_INIT), yes)
+    DFLAGS  += -D_CVP_LSET_INIT_
+  endif
+
+  READ_SDF = no
+  ifeq ($(READ_SDF), yes)
+    DFLAGS  += -D_READ_SDF_
+  endif
+
+  READ_TARGET_FIELD = recalculate_scale
+  # READ_TARGET_FIELD = as_it_is
+  # READ_TARGET_FIELD = only_do_post
+   # READ_TARGET_FIELD = no
+  ifeq ($(READ_TARGET_FIELD), recalculate_scale)
+    DFLAGS  += -D_READ_TARGET_FIELD_
+  else ifeq ($(READ_TARGET_FIELD), as_it_is)
+    DFLAGS  += -D_READ_TARGET_FIELD_UNCHANGE_
+  else ifeq ($(READ_TARGET_FIELD), only_do_post)
+    DFLAGS  += -D_READ_TARGET_FIELD_FOR_POST_
+  endif
+
+  ifeq ($(READ_TARGET_FIELD), no)
+    ifeq ($(CVP_LSET_INIT), yes)
+      NP  = 1
+      ifeq ($(PARALLEL), SINGLECPU)
+        PARALLEL = MULTICPU
+        DFLAGS  += -D_MPI_
+      endif
+    endif
+  endif
+# Mesh Gen Part
+
+  #INIT_STYLE = CVP_FOR_LSET
+  INIT_STYLE = READ_VP
+  # INIT_STYLE = CLOSE_PACKING
+  ifeq ($(INIT_STYLE), CVP_FOR_LSET)
+    DFLAGS  += -D_CVP_LSET_
+  else ifeq ($(INIT_STYLE), READ_VP)
+    DFLAGS  += -D_READ_VP_
+  else ifeq ($(INIT_STYLE), CLOSE_PACKING)
+    DFLAGS  += -D_CLOSE_PACKING_
+  endif
+
+  # EXTRA_POINTS = generate_dummy_particle
+  EXTRA_POINTS = no
+  ifeq ($(EXTRA_POINTS), generate_dummy_particle)
+    DFLAGS  += -D_GEN_DUMMY_PART_
+  endif
+
+  CVP_LB = no
+  ifeq ($(CVP_LB), yes)
+    DFLAGS  += -D_CVP_LB_
+  endif
+
+  WVT = no
+  ifeq ($(WVT), yes)
+    DFLAGS  += -D_WVT_
+  endif
+
+  APD = no
+  ifeq ($(APD), yes)
+    DFLAGS  += -D_APD_
+  endif
+
+  DFLAGS += -D_MESH_GENERATION_
+endif
+
+#*****************************************************#
+#           Physical and partition dimension          #
+#            and boundary conditions                  #
+#*****************************************************#
+
+DIMENSION = DIM2
+ifeq ($(DIMENSION),DIM1)
+DFLAGS	+= -D_DIM1_
+else ifeq ($(DIMENSION),DIM2)
+DFLAGS	+= -D_DIM2_
+else
+DFLAGS	+= -D_DIM3_
+endif
+
+PARTITION_DIMENSION = DIM2
+ifeq ($(PARTITION_DIMENSION),DIM0)
+DFLAGS  += -D_P_DIM0_
+else ifeq ($(PARTITION_DIMENSION),DIM1)
+DFLAGS	+= -D_P_DIM1_
+else ifeq ($(PARTITION_DIMENSION),DIM2)
+DFLAGS	+= -D_P_DIM2_
+else
+DFLAGS	+= -D_P_DIM3_
+endif
+
+PERIODIC = DIM0
+ifeq ($(PERIODIC), DIM0)
+	DFLAGS  += -D_NON_PERI_
+else ifeq ($(PERIODIC), DIM1)
+	DFLAGS  += -D_PERI_DIM1_
+else ifeq ($(PERIODIC), DIM2)
+	DFLAGS  += -D_PERI_DIM2_
+else
+	DFLAGS  += -D_PERI_DIM3_
+endif
+
+SYMMETRIC = DIM2
+ifeq ($(SYMMETRIC), DIM0)
+	DFLAGS  += -D_NON_SYM_
+else
+  ifeq ($(SYMMETRIC), DIM1)
+    DFLAGS  += -D_SYM_DIM1_
+  else ifeq ($(SYMMETRIC), DIM2)
+    DFLAGS  += -D_SYM_DIM2_
+  else
+    DFLAGS  += -D_SYM_DIM3_
+  endif
+  # SLIP = -D_NON_SLIP_
+  SLIP = -D_FREE_SLIP_
+  DFLAGS  += $(SLIP)
+
+endif
